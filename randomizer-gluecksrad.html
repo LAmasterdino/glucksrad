@@ -1,0 +1,501 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Randomizer Glücksrad</title>
+  <style>
+    :root {
+      --bg1: #0f172a;
+      --bg2: #1e1b4b;
+      --card: rgba(255,255,255,.10);
+      --card-border: rgba(255,255,255,.16);
+      --text: #f8fafc;
+      --muted: #cbd5e1;
+      --accent: #8b5cf6;
+      --accent2: #ec4899;
+      --danger: #ef4444;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      font-family: Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      color: var(--text);
+      background:
+        radial-gradient(circle at 20% 10%, rgba(139,92,246,.32), transparent 30%),
+        radial-gradient(circle at 80% 20%, rgba(236,72,153,.24), transparent 28%),
+        linear-gradient(135deg, var(--bg1), var(--bg2));
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 28px;
+    }
+
+    .app {
+      width: min(1180px, 100%);
+      display: grid;
+      grid-template-columns: 1.15fr .85fr;
+      gap: 26px;
+    }
+
+    .panel {
+      background: var(--card);
+      border: 1px solid var(--card-border);
+      box-shadow: 0 24px 70px rgba(0,0,0,.28);
+      backdrop-filter: blur(18px);
+      border-radius: 28px;
+      padding: 26px;
+    }
+
+    .wheel-panel {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 650px;
+    }
+
+    .title {
+      font-size: clamp(1.8rem, 3vw, 2.6rem);
+      font-weight: 800;
+      margin: 0 0 8px;
+      letter-spacing: -.03em;
+      text-align: center;
+    }
+
+    .subtitle {
+      margin: 0 0 22px;
+      color: var(--muted);
+      text-align: center;
+    }
+
+    .wheel-wrap {
+      position: relative;
+      width: min(560px, 90vw);
+      aspect-ratio: 1;
+      display: grid;
+      place-items: center;
+    }
+
+    canvas {
+      width: 100%;
+      height: 100%;
+      display: block;
+      filter: drop-shadow(0 18px 28px rgba(0,0,0,.35));
+    }
+
+    .pointer {
+      position: absolute;
+      top: -5px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 0;
+      height: 0;
+      border-left: 22px solid transparent;
+      border-right: 22px solid transparent;
+      border-top: 50px solid #f8fafc;
+      z-index: 3;
+      filter: drop-shadow(0 6px 8px rgba(0,0,0,.35));
+    }
+
+    .spin-btn {
+      margin-top: 10px;
+      border: 0;
+      border-radius: 999px;
+      padding: 16px 34px;
+      font-size: 1.05rem;
+      font-weight: 800;
+      color: white;
+      cursor: pointer;
+      background: linear-gradient(135deg, var(--accent), var(--accent2));
+      box-shadow: 0 14px 30px rgba(139,92,246,.3);
+      transition: transform .15s ease, box-shadow .15s ease, opacity .15s ease;
+    }
+
+    .spin-btn:hover { transform: translateY(-2px); box-shadow: 0 18px 34px rgba(236,72,153,.28); }
+    .spin-btn:active { transform: translateY(1px); }
+    .spin-btn:disabled { opacity: .6; cursor: not-allowed; transform: none; }
+
+    .result {
+      margin-top: 16px;
+      min-height: 32px;
+      text-align: center;
+      font-size: 1.2rem;
+      font-weight: 700;
+    }
+
+    .result span {
+      background: rgba(255,255,255,.08);
+      border: 1px solid rgba(255,255,255,.10);
+      padding: 8px 14px;
+      border-radius: 999px;
+    }
+
+    .side h2 {
+      margin-top: 0;
+      font-size: 1.35rem;
+    }
+
+    .help {
+      color: var(--muted);
+      font-size: .92rem;
+      line-height: 1.5;
+      margin-top: -5px;
+    }
+
+    textarea {
+      width: 100%;
+      min-height: 260px;
+      resize: vertical;
+      color: var(--text);
+      background: rgba(15,23,42,.55);
+      border: 1px solid rgba(255,255,255,.14);
+      border-radius: 18px;
+      padding: 15px;
+      font: inherit;
+      outline: none;
+    }
+
+    textarea:focus {
+      border-color: rgba(196,181,253,.8);
+      box-shadow: 0 0 0 4px rgba(139,92,246,.15);
+    }
+
+    .controls {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+      margin-top: 12px;
+    }
+
+    .secondary, .danger {
+      border: 1px solid rgba(255,255,255,.14);
+      border-radius: 14px;
+      padding: 12px 14px;
+      font: inherit;
+      font-weight: 700;
+      cursor: pointer;
+      color: var(--text);
+      background: rgba(255,255,255,.06);
+    }
+
+    .secondary:hover { background: rgba(255,255,255,.1); }
+    .danger {
+      background: rgba(239,68,68,.13);
+      border-color: rgba(239,68,68,.28);
+    }
+    .danger:hover { background: rgba(239,68,68,.2); }
+
+    .stat {
+      display: flex;
+      justify-content: space-between;
+      color: var(--muted);
+      font-size: .9rem;
+      margin: 12px 2px 0;
+    }
+
+    .tips {
+      margin-top: 20px;
+      padding: 16px;
+      border-radius: 18px;
+      background: rgba(255,255,255,.05);
+      border: 1px solid rgba(255,255,255,.08);
+      color: var(--muted);
+      font-size: .9rem;
+      line-height: 1.55;
+    }
+
+    .tips strong { color: var(--text); }
+
+    @media (max-width: 900px) {
+      .app { grid-template-columns: 1fr; }
+      .wheel-panel { min-height: auto; }
+    }
+
+    @media (max-width: 520px) {
+      body { padding: 14px; }
+      .panel { padding: 18px; border-radius: 22px; }
+      .controls { grid-template-columns: 1fr; }
+      .wheel-wrap { width: min(440px, 88vw); }
+    }
+  </style>
+</head>
+<body>
+  <main class="app">
+    <section class="panel wheel-panel">
+      <h1 class="title">🎡 Randomizer Glücksrad</h1>
+      <p class="subtitle">Einmal drehen – das Schicksal entscheidet.</p>
+
+      <div class="wheel-wrap">
+        <div class="pointer" aria-hidden="true"></div>
+        <canvas id="wheel" width="700" height="700" aria-label="Glücksrad"></canvas>
+      </div>
+
+      <button id="spinBtn" class="spin-btn">🎲 Drehen</button>
+      <div id="result" class="result" aria-live="polite"><span>Noch nichts gezogen</span></div>
+    </section>
+
+    <aside class="panel side">
+      <h2>Optionen</h2>
+      <p class="help">Eine Option pro Zeile. Leere Zeilen werden automatisch ignoriert.</p>
+
+      <textarea id="items" aria-label="Optionen">Pizza
+Burger
+Sushi
+Pasta
+Tacos
+Salat</textarea>
+
+      <div class="stat">
+        <span>Einträge</span>
+        <strong id="count">6</strong>
+      </div>
+
+      <div class="controls">
+        <button id="shuffleBtn" class="secondary">🔀 Mischen</button>
+        <button id="exampleBtn" class="secondary">✨ Beispiele</button>
+        <button id="clearBtn" class="danger">🗑 Leeren</button>
+        <button id="resetBtn" class="secondary">↺ Zurücksetzen</button>
+      </div>
+
+      <div class="tips">
+        <strong>Tipp:</strong> Du kannst die Liste jederzeit ändern. Beim Drehen
+        werden die aktuellen Einträge verwendet. Jede Option hat dieselbe Chance.
+      </div>
+    </aside>
+  </main>
+
+  <script>
+    const canvas = document.getElementById("wheel");
+    const ctx = canvas.getContext("2d");
+    const itemsEl = document.getElementById("items");
+    const countEl = document.getElementById("count");
+    const spinBtn = document.getElementById("spinBtn");
+    const resultEl = document.getElementById("result");
+    const shuffleBtn = document.getElementById("shuffleBtn");
+    const exampleBtn = document.getElementById("exampleBtn");
+    const clearBtn = document.getElementById("clearBtn");
+    const resetBtn = document.getElementById("resetBtn");
+
+    const defaultItems = ["Pizza", "Burger", "Sushi", "Pasta", "Tacos", "Salat"];
+    const colors = [
+      "#f97316", "#eab308", "#22c55e", "#06b6d4",
+      "#3b82f6", "#8b5cf6", "#d946ef", "#ec4899"
+    ];
+
+    let rotation = 0;
+    let spinning = false;
+
+    function getItems() {
+      return itemsEl.value
+        .split("\n")
+        .map(s => s.trim())
+        .filter(Boolean);
+    }
+
+    function updateCount() {
+      countEl.textContent = getItems().length;
+    }
+
+    function drawWheel() {
+      const items = getItems();
+      const size = canvas.width;
+      const cx = size / 2;
+      const cy = size / 2;
+      const radius = size * 0.43;
+
+      ctx.clearRect(0, 0, size, size);
+
+      // Soft outer ring
+      ctx.beginPath();
+      ctx.arc(cx, cy, radius + 13, 0, Math.PI * 2);
+      ctx.fillStyle = "rgba(255,255,255,.06)";
+      ctx.fill();
+
+      if (!items.length) {
+        ctx.beginPath();
+        ctx.arc(cx, cy, radius, 0, Math.PI * 2);
+        ctx.fillStyle = "#334155";
+        ctx.fill();
+        ctx.fillStyle = "#e2e8f0";
+        ctx.font = "700 28px system-ui";
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+        ctx.fillText("Keine Optionen", cx, cy);
+        return;
+      }
+
+      const slice = (Math.PI * 2) / items.length;
+
+      items.forEach((item, i) => {
+        const start = rotation - Math.PI / 2 + i * slice;
+        const end = start + slice;
+
+        ctx.beginPath();
+        ctx.moveTo(cx, cy);
+        ctx.arc(cx, cy, radius, start, end);
+        ctx.closePath();
+        ctx.fillStyle = colors[i % colors.length];
+        ctx.fill();
+        ctx.strokeStyle = "rgba(255,255,255,.9)";
+        ctx.lineWidth = 2.5;
+        ctx.stroke();
+
+        // Text
+        const mid = start + slice / 2;
+        ctx.save();
+        ctx.translate(cx + Math.cos(mid) * radius * 0.66,
+                      cy + Math.sin(mid) * radius * 0.66);
+        ctx.rotate(mid + Math.PI / 2);
+
+        let fontSize = 28;
+        if (items.length > 10) fontSize = 20;
+        if (item.length > 18) fontSize = 18;
+        ctx.font = `800 ${fontSize}px system-ui`;
+        ctx.fillStyle = "#fff";
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+        ctx.shadowColor = "rgba(0,0,0,.28)";
+        ctx.shadowBlur = 5;
+
+        const maxWidth = radius * 0.38;
+        let label = item;
+        if (ctx.measureText(label).width > maxWidth) {
+          while (label.length > 4 && ctx.measureText(label + "…").width > maxWidth) {
+            label = label.slice(0, -1);
+          }
+          label += "…";
+        }
+        ctx.fillText(label, 0, 0);
+        ctx.restore();
+      });
+
+      // Center cap
+      ctx.beginPath();
+      ctx.arc(cx, cy, radius * 0.14, 0, Math.PI * 2);
+      ctx.fillStyle = "#0f172a";
+      ctx.fill();
+      ctx.lineWidth = 6;
+      ctx.strokeStyle = "rgba(255,255,255,.75)";
+      ctx.stroke();
+
+      ctx.fillStyle = "#fff";
+      ctx.font = "800 36px system-ui";
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.fillText("★", cx, cy + 1);
+    }
+
+    function pickIndex() {
+      const items = getItems();
+      if (!items.length) return -1;
+
+      // Pointer is at the top (-PI/2). Convert wheel rotation to item index.
+      const slice = (Math.PI * 2) / items.length;
+      let normalized = ((Math.PI * 2 - rotation) + Math.PI / 2) % (Math.PI * 2);
+      normalized = (normalized + Math.PI * 2) % (Math.PI * 2);
+      return Math.floor(normalized / slice) % items.length;
+    }
+
+    function spin() {
+      const items = getItems();
+      if (spinning) return;
+
+      if (items.length < 2) {
+        resultEl.innerHTML = "<span>Bitte mindestens 2 Optionen eintragen.</span>";
+        return;
+      }
+
+      spinning = true;
+      spinBtn.disabled = true;
+      resultEl.innerHTML = "<span>🎡 Dreht sich …</span>";
+
+      const winner = Math.floor(Math.random() * items.length);
+      const slice = (Math.PI * 2) / items.length;
+
+      // Land winner in the center of the top pointer.
+      const desired = -(winner + 0.5) * slice;
+      let delta = desired - rotation;
+      while (delta < 0) delta += Math.PI * 2;
+
+      const extraTurns = 6 + Math.floor(Math.random() * 3);
+      const target = rotation + extraTurns * Math.PI * 2 + delta;
+
+      const start = performance.now();
+      const duration = 4200 + Math.random() * 500;
+      const startRotation = rotation;
+
+      function easeOut(t) {
+        return 1 - Math.pow(1 - t, 4);
+      }
+
+      function frame(now) {
+        const t = Math.min(1, (now - start) / duration);
+        rotation = startRotation + (target - startRotation) * easeOut(t);
+        drawWheel();
+
+        if (t < 1) {
+          requestAnimationFrame(frame);
+        } else {
+          rotation = target % (Math.PI * 2);
+          drawWheel();
+          resultEl.innerHTML = `<span>🎉 ${items[winner]}</span>`;
+          spinning = false;
+          spinBtn.disabled = false;
+        }
+      }
+
+      requestAnimationFrame(frame);
+    }
+
+    itemsEl.addEventListener("input", () => {
+      updateCount();
+      if (!spinning) drawWheel();
+    });
+
+    shuffleBtn.addEventListener("click", () => {
+      const arr = getItems();
+      for (let i = arr.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [arr[i], arr[j]] = [arr[j], arr[i]];
+      }
+      itemsEl.value = arr.join("\n");
+      updateCount();
+      drawWheel();
+    });
+
+    exampleBtn.addEventListener("click", () => {
+      itemsEl.value = [
+        "Filmabend", "Spaziergang", "Pizza", "Kochen",
+        "Gaming", "Buch lesen", "Sport", "Überraschung"
+      ].join("\n");
+      updateCount();
+      drawWheel();
+      resultEl.innerHTML = "<span>Beispiel-Liste geladen</span>";
+    });
+
+    clearBtn.addEventListener("click", () => {
+      itemsEl.value = "";
+      updateCount();
+      drawWheel();
+      resultEl.innerHTML = "<span>Liste geleert</span>";
+    });
+
+    resetBtn.addEventListener("click", () => {
+      itemsEl.value = defaultItems.join("\n");
+      rotation = 0;
+      updateCount();
+      drawWheel();
+      resultEl.innerHTML = "<span>Noch nichts gezogen</span>";
+    });
+
+    spinBtn.addEventListener("click", spin);
+
+    updateCount();
+    drawWheel();
+  </script>
+</body>
+</html>
